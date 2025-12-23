@@ -356,12 +356,13 @@
     <script>
         // ===== Firebase Configuration =====
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCVdv49IiDYrFiKhfVbpD79x3LKLHnbH1k",
+            authDomain: "we-attendance-system.firebaseapp.com",
+            projectId: "we-attendance-system",
+            storageBucket: "we-attendance-system.firebasestorage.app",
+            messagingSenderId: "507634052006",
+            appId: "1:507634052006:web:fb8aef2a7a227c7e657d67",
+            measurementId: "G-N09J816Q4D"
         };
 
         // Initialize Firebase
@@ -623,4 +624,32 @@
             
             setTimeout(() => {
                 errorDiv.classList.add('hidden');
-            }, 5
+            }, 5000);
+        }
+
+        // ===== Reset =====
+        function resetToQR() {
+            // إعادة تعيين كل شيء
+            currentStudent = null;
+            
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('step1').classList.remove('completed');
+            document.getElementById('step2').classList.remove('active', 'completed');
+            document.getElementById('step3').classList.remove('active', 'completed');
+
+            document.getElementById('qrSection').classList.remove('hidden');
+            document.getElementById('faceSection').classList.add('hidden');
+            document.getElementById('successSection').classList.add('hidden');
+            document.getElementById('faceLoading').classList.add('hidden');
+
+            document.getElementById('startQrBtn').textContent = 'ابدأ المسح';
+            document.getElementById('startQrBtn').disabled = false;
+            document.getElementById('verifyFaceBtn').disabled = false;
+
+            // مسح قارئ QR
+            const qrReader = document.getElementById('qr-reader');
+            qrReader.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
