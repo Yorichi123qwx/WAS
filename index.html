@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الحضور - الطلاب</title>
+    <title>We Attendance System</title>
     
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -292,15 +292,15 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎓 نظام تسجيل الحضور</h1>
-            <p>مرحباً بك في نظام الحضور</p>
+            <h1>We Attendance System</h1>
+            <p>Student attendance registration</p>
             <div class="time-display" id="currentTime"></div>
         </div>
 
         <div class="content">
             <!-- Method Selector -->
             <div id="methodSelector">
-                <h3 class="scan-title">اختر طريقة التسجيل</h3>
+                <h3 class="scan-title">:Choose the registration method</h3>
                 <div class="method-selector">
                     <div class="method-btn active" onclick="selectMethod('qr')">
                         <div class="method-icon">📱</div>
@@ -308,52 +308,52 @@
                     </div>
                     <div class="method-btn" onclick="selectMethod('id')">
                         <div class="method-icon">🆔</div>
-                        <div class="method-label">كود الطالب</div>
+                        <div class="method-label">Student code</div>
                     </div>
                 </div>
             </div>
 
             <!-- QR Code Scan Section -->
             <div class="scan-section active" id="qrSection">
-                <h2 class="scan-title">📱 امسح كود QR من كارتك</h2>
+                <h2 class="scan-title">Scan the QR code from your card. </h2>
                 <div class="instructions">
-                    قرّب الكارت من الكاميرا لمسح كود QR
+                    Close the camera to the card to scan the QR
                 </div>
                 <div class="scan-box">
                     <div id="qr-reader"></div>
                 </div>
-                <button class="btn" id="startQrBtn">ابدأ المسح</button>
+                <button class="btn" id="startQrBtn">Start scanning</button>
             </div>
 
             <!-- ID Input Section -->
             <div class="scan-section" id="idSection">
-                <h2 class="scan-title">🆔 أدخل كود الطالب</h2>
+                <h2 class="scan-title">Enter your code on the card</h2>
                 <div class="instructions">
-                    أدخل كود الطالب الموجود على الكارت
+                    Enter your correct code on the card
                 </div>
                 <div class="scan-box">
                     <div class="form-group">
-                        <label class="form-label">كود الطالب</label>
+                        <label class="form-label">Student code</label>
                         <input type="text" class="form-input" id="studentIdInput" placeholder="مثال: STD001">
                     </div>
                 </div>
-                <button class="btn" id="submitIdBtn">تسجيل الحضور</button>
+                <button class="btn" id="submitIdBtn">Attendance registration</button>
             </div>
 
             <!-- Success Section -->
             <div class="scan-section" id="successSection">
                 <div class="success-message">
                     <div class="success-icon">✓</div>
-                    <h2 class="scan-title">تم تسجيل حضورك بنجاح!</h2>
+                    <h2 class="scan-title">Your attendance has been registered successfully!</h2>
                     <div id="successDetails"></div>
                 </div>
-                <button class="btn" id="newAttendanceBtn">تسجيل طالب آخر</button>
+                <button class="btn" id="newAttendanceBtn">Register another student</button>
             </div>
 
             <!-- Loading Section -->
             <div id="loadingSection" class="loading hidden">
                 <div class="spinner"></div>
-                <span>جاري التحقق...</span>
+                <span>Verifying..</span>
             </div>
 
             <!-- Error Section -->
