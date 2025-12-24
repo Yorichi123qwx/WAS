@@ -440,13 +440,11 @@
             try {
                 showLoading('جاري تحميل نماذج التعرف على الوجه...');
                 
-                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
                 
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-                ]);
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
                 
                 modelsLoaded = true;
                 hideLoading();
@@ -456,7 +454,7 @@
             } catch (error) {
                 console.error('Error loading models:', error);
                 hideLoading();
-                showError('خطأ في تحميل نماذج التعرف على الوجه');
+                showError('خطأ في تحميل نماذج التعرف على الوجه: ' + error.message);
             }
         }
 
@@ -557,7 +555,7 @@
             
             if (video.readyState === 4) {
                 const detection = await faceapi
-                    .detectSingleFace(video)
+                    .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
                     .withFaceLandmarks()
                     .withFaceDescriptor();
                 
