@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Attendance System</title>
+    <title>تسجيل الحضور بالوجه</title>
     
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -12,6 +11,9 @@
     
     <!-- QR Code Scanner -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    
+    <!-- Face API -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
     
     <style>
         * {
@@ -34,13 +36,13 @@
             background: white;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
             overflow: hidden;
         }
 
         .header {
-            background: #2c3e50;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -63,7 +65,7 @@
 
         .method-selector {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 15px;
             margin-bottom: 30px;
         }
@@ -79,23 +81,23 @@
         }
 
         .method-btn:hover {
-            border-color: #2c3e50;
+            border-color: #1e3c72;
             background: #f8f9fa;
         }
 
         .method-btn.active {
-            border-color: #2c3e50;
-            background: #2c3e50;
+            border-color: #1e3c72;
+            background: #1e3c72;
             color: white;
         }
 
         .method-icon {
-            font-size: 40px;
+            font-size: 36px;
             margin-bottom: 10px;
         }
 
         .method-label {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 500;
         }
 
@@ -122,10 +124,19 @@
             border: 2px solid #e0e0e0;
         }
 
-        #qr-reader {
+        #qr-reader, #video-element {
             width: 100%;
             border-radius: 8px;
             overflow: hidden;
+        }
+
+        .camera-container {
+            position: relative;
+            max-width: 100%;
+        }
+
+        #video-element {
+            border: 3px solid #1e3c72;
         }
 
         .form-group {
@@ -149,11 +160,11 @@
 
         .form-input:focus {
             outline: none;
-            border-color: #2c3e50;
+            border-color: #1e3c72;
         }
 
         .btn {
-            background: #2c3e50;
+            background: #1e3c72;
             color: white;
             border: none;
             padding: 15px 40px;
@@ -166,7 +177,7 @@
         }
 
         .btn:hover {
-            background: #34495e;
+            background: #2a5298;
         }
 
         .btn:disabled {
@@ -186,16 +197,11 @@
         }
 
         .student-photo {
-            width: 70px;
-            height: 70px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
-            background: #2c3e50;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
+            object-fit: cover;
+            border: 3px solid #1e3c72;
         }
 
         .student-info {
@@ -255,7 +261,7 @@
             justify-content: center;
             align-items: center;
             gap: 10px;
-            color: #2c3e50;
+            color: #1e3c72;
             font-size: 16px;
             margin: 20px 0;
         }
@@ -264,7 +270,7 @@
             width: 30px;
             height: 30px;
             border: 3px solid #e0e0e0;
-            border-top-color: #2c3e50;
+            border-top-color: #1e3c72;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -287,73 +293,101 @@
         .hidden {
             display: none !important;
         }
+
+        .match-confidence {
+            background: #27ae60;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>We Attendance System</h1>
-            <p>Student attendance registration</p>
+            <h1>🎓 نظام الحضور والغياب</h1>
+            <p>تسجيل حضور الطلاب</p>
             <div class="time-display" id="currentTime"></div>
         </div>
 
         <div class="content">
             <!-- Method Selector -->
             <div id="methodSelector">
-                <h3 class="scan-title">:Choose the registration method</h3>
+                <h3 class="scan-title">اختر طريقة التسجيل:</h3>
                 <div class="method-selector">
-                    <div class="method-btn active" onclick="selectMethod('qr')">
+                    <div class="method-btn active" onclick="selectMethod('face')">
+                        <div class="method-icon">😊</div>
+                        <div class="method-label">التعرف على الوجه</div>
+                    </div>
+                    <div class="method-btn" onclick="selectMethod('qr')">
                         <div class="method-icon">📱</div>
                         <div class="method-label">QR Code</div>
                     </div>
                     <div class="method-btn" onclick="selectMethod('id')">
                         <div class="method-icon">🆔</div>
-                        <div class="method-label">Student code</div>
+                        <div class="method-label">كود الطالب</div>
                     </div>
                 </div>
             </div>
 
-            <!-- QR Code Scan Section -->
-            <div class="scan-section active" id="qrSection">
-                <h2 class="scan-title">Scan the QR code from your card. </h2>
+            <!-- Face Recognition Section -->
+            <div class="scan-section active" id="faceSection">
+                <h2 class="scan-title">انظر إلى الكاميرا لتسجيل حضورك</h2>
                 <div class="instructions">
-                    Close the camera to the card to scan the QR
+                    تأكد من وجود إضاءة جيدة وانظر مباشرة إلى الكاميرا
+                </div>
+                <div class="scan-box">
+                    <div class="camera-container">
+                        <video id="video-element" autoplay playsinline></video>
+                    </div>
+                </div>
+                <button class="btn" id="startFaceBtn">ابدأ التعرف على الوجه</button>
+            </div>
+
+            <!-- QR Code Section -->
+            <div class="scan-section" id="qrSection">
+                <h2 class="scan-title">امسح QR Code من الكارت</h2>
+                <div class="instructions">
+                    قرب الكاميرا من الكارت لمسح الكود
                 </div>
                 <div class="scan-box">
                     <div id="qr-reader"></div>
                 </div>
-                <button class="btn" id="startQrBtn">Start scanning</button>
+                <button class="btn" id="startQrBtn">ابدأ المسح</button>
             </div>
 
             <!-- ID Input Section -->
             <div class="scan-section" id="idSection">
-                <h2 class="scan-title">Enter your code on the card</h2>
+                <h2 class="scan-title">أدخل كودك على الكارت</h2>
                 <div class="instructions">
-                    Enter your correct code on the card
+                    أدخل كودك الصحيح على الكارت
                 </div>
                 <div class="scan-box">
                     <div class="form-group">
-                        <label class="form-label">Student code</label>
-                        <input type="text" class="form-input" id="studentIdInput" placeholder="مثال: STD001">
+                        <label class="form-label">كود الطالب</label>
+                        <input type="text" class="form-input" id="studentIdInput" placeholder="مثال: ABC123">
                     </div>
                 </div>
-                <button class="btn" id="submitIdBtn">Attendance registration</button>
+                <button class="btn" id="submitIdBtn">تسجيل الحضور</button>
             </div>
 
             <!-- Success Section -->
             <div class="scan-section" id="successSection">
                 <div class="success-message">
                     <div class="success-icon">✓</div>
-                    <h2 class="scan-title">Your attendance has been registered successfully!</h2>
+                    <h2 class="scan-title">تم تسجيل حضورك بنجاح!</h2>
                     <div id="successDetails"></div>
                 </div>
-                <button class="btn" id="newAttendanceBtn">Register another student</button>
+                <button class="btn" id="newAttendanceBtn">تسجيل طالب آخر</button>
             </div>
 
             <!-- Loading Section -->
             <div id="loadingSection" class="loading hidden">
                 <div class="spinner"></div>
-                <span>Verifying..</span>
+                <span id="loadingText">جاري التحقق...</span>
             </div>
 
             <!-- Error Section -->
@@ -377,7 +411,11 @@
         const db = firebase.firestore();
 
         let html5QrCode;
-        let currentMethod = 'qr';
+        let currentMethod = 'face';
+        let videoStream;
+        let modelsLoaded = false;
+        let recognitionActive = false;
+        let allStudents = [];
 
         // Time Display
         function updateTime() {
@@ -397,6 +435,50 @@
         setInterval(updateTime, 1000);
         updateTime();
 
+        // Load Face API Models
+        async function loadModels() {
+            try {
+                showLoading('جاري تحميل نماذج التعرف على الوجه...');
+                
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                
+                await Promise.all([
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+                
+                modelsLoaded = true;
+                hideLoading();
+                
+                // Load all students
+                await loadAllStudents();
+            } catch (error) {
+                console.error('Error loading models:', error);
+                hideLoading();
+                showError('خطأ في تحميل نماذج التعرف على الوجه');
+            }
+        }
+
+        // Load All Students from Database
+        async function loadAllStudents() {
+            try {
+                const snapshot = await db.collection('students')
+                    .where('active', '==', true)
+                    .get();
+                
+                allStudents = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    faceDescriptor: new Float32Array(doc.data().faceDescriptor)
+                }));
+                
+                console.log(`Loaded ${allStudents.length} students`);
+            } catch (error) {
+                console.error('Error loading students:', error);
+            }
+        }
+
         // Select Method
         function selectMethod(method) {
             currentMethod = method;
@@ -408,7 +490,14 @@
                 section.classList.remove('active');
             });
             
-            if (method === 'qr') {
+            // Stop video if switching away from face
+            if (method !== 'face' && videoStream) {
+                stopCamera();
+            }
+            
+            if (method === 'face') {
+                document.getElementById('faceSection').classList.add('active');
+            } else if (method === 'qr') {
                 document.getElementById('qrSection').classList.add('active');
             } else {
                 document.getElementById('idSection').classList.add('active');
@@ -418,89 +507,105 @@
             hideError();
         }
 
-        // QR Code Scanner
-        document.getElementById('startQrBtn').addEventListener('click', startQRScanner);
-
-        function startQRScanner() {
-            html5QrCode = new Html5Qrcode("qr-reader");
-            
-            html5QrCode.start(
-                { facingMode: "environment" },
-                {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 }
-                },
-                onScanSuccess,
-                onScanFailure
-            ).catch(err => {
-                showError('خطأ في تشغيل الكاميرا: ' + err);
-            });
-
-            document.getElementById('startQrBtn').textContent = 'جاري المسح...';
-            document.getElementById('startQrBtn').disabled = true;
-        }
-
-        function onScanSuccess(decodedText) {
-            console.log('QR Code detected:', decodedText);
-            
-            html5QrCode.stop().then(() => {
-                verifyAndRecordAttendance(decodedText, 'QR Code');
-            });
-        }
-
-        function onScanFailure(error) {
-            // يحدث باستمرار أثناء المسح - نتجاهله
-        }
-
-        // ID Input
-        document.getElementById('submitIdBtn').addEventListener('click', submitId);
-        document.getElementById('studentIdInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                submitId();
+        // Start Camera
+        async function startCamera() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user'
+                    } 
+                });
+                const video = document.getElementById('video-element');
+                video.srcObject = videoStream;
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                showError('خطأ في الوصول إلى الكاميرا');
             }
+        }
+
+        // Stop Camera
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            recognitionActive = false;
+        }
+
+        // Face Recognition
+        document.getElementById('startFaceBtn').addEventListener('click', async function() {
+            if (!modelsLoaded) {
+                await loadModels();
+            }
+            
+            await startCamera();
+            recognitionActive = true;
+            
+            document.getElementById('startFaceBtn').textContent = 'جاري البحث عن الوجه...';
+            document.getElementById('startFaceBtn').disabled = true;
+            
+            recognizeFace();
         });
 
-        function submitId() {
-            const studentId = document.getElementById('studentIdInput').value.trim();
+        // Recognize Face Continuously
+        async function recognizeFace() {
+            if (!recognitionActive) return;
             
-            if (!studentId) {
-                showError('الرجاء إدخال كود الطالب');
-                return;
+            const video = document.getElementById('video-element');
+            
+            if (video.readyState === 4) {
+                const detection = await faceapi
+                    .detectSingleFace(video)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                
+                if (detection) {
+                    const faceDescriptor = detection.descriptor;
+                    
+                    // Compare with all students
+                    let bestMatch = null;
+                    let bestDistance = Infinity;
+                    const MATCH_THRESHOLD = 0.6; // Lower is better (95% match ≈ 0.4-0.6)
+                    
+                    for (const student of allStudents) {
+                        const distance = faceapi.euclideanDistance(
+                            faceDescriptor, 
+                            student.faceDescriptor
+                        );
+                        
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            bestMatch = student;
+                        }
+                    }
+                    
+                    if (bestMatch && bestDistance < MATCH_THRESHOLD) {
+                        recognitionActive = false;
+                        stopCamera();
+                        
+                        const matchPercentage = Math.round((1 - bestDistance) * 100);
+                        await recordAttendance(bestMatch, matchPercentage);
+                        return;
+                    }
+                }
             }
             
-            verifyAndRecordAttendance(studentId, 'كود الطالب');
+            // Continue recognition
+            setTimeout(recognizeFace, 100);
         }
 
-        // Verify and Record Attendance
-        async function verifyAndRecordAttendance(studentId, method) {
-            showLoading();
+        // Record Attendance
+        async function recordAttendance(student, matchPercentage = null) {
+            showLoading('جاري تسجيل الحضور...');
             hideError();
 
             try {
-                // التحقق من وجود الطالب في قاعدة البيانات
-                const studentDoc = await db.collection('students').doc(studentId).get();
-                
-                if (!studentDoc.exists) {
-                    hideLoading();
-                    showError('الكود غير صحيح أو الطالب غير مسجل في النظام');
-                    resetToMethod();
-                    return;
-                }
-
-                const studentData = studentDoc.data();
-
-                // التحقق من QR Code
-                if (studentData.qrCode !== studentId) {
-                    hideLoading();
-                    showError('كود QR غير صحيح');
-                    resetToMethod();
-                    return;
-                }
-
-                // التحقق من الحضور المسبق لنفس اليوم
+                // Check if already attended today
                 const today = new Date().toLocaleDateString('ar-EG');
                 const existingAttendance = await db.collection('attendance')
-                    .where('studentId', '==', studentId)
+                    .where('studentId', '==', student.id)
                     .where('date', '==', today)
                     .get();
 
@@ -511,67 +616,125 @@
                     return;
                 }
 
-                // تسجيل الحضور
+                // Record attendance
                 const now = new Date();
                 const attendanceData = {
-                    studentId: studentData.id,
-                    studentName: studentData.name,
-                    grade: studentData.grade,
-                    department: studentData.department,
+                    studentId: student.id,
+                    studentName: student.name,
+                    grade: student.grade,
+                    department: student.department,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     date: today,
                     time: now.toLocaleTimeString('ar-EG'),
                     status: 'حاضر',
-                    method: method
+                    method: matchPercentage ? `التعرف على الوجه (${matchPercentage}%)` : currentMethod
                 };
 
                 await db.collection('attendance').add(attendanceData);
 
                 hideLoading();
-                showSuccess(studentData, now);
+                showSuccess(student, now, matchPercentage);
             } catch (error) {
                 hideLoading();
                 console.error('Error:', error);
-                showError('خطأ في التحقق من البيانات: ' + error.message);
+                showError('خطأ في تسجيل الحضور: ' + error.message);
                 resetToMethod();
             }
         }
 
+        // QR Code Scanner
+        document.getElementById('startQrBtn').addEventListener('click', startQRScanner);
+
+        function startQRScanner() {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess
+            ).catch(err => {
+                showError('خطأ في تشغيل الكاميرا: ' + err);
+            });
+
+            document.getElementById('startQrBtn').textContent = 'جاري المسح...';
+            document.getElementById('startQrBtn').disabled = true;
+        }
+
+        async function onScanSuccess(decodedText) {
+            html5QrCode.stop().then(async () => {
+                const student = allStudents.find(s => s.id === decodedText);
+                if (student) {
+                    await recordAttendance(student);
+                } else {
+                    showError('الكود غير صحيح');
+                    resetToMethod();
+                }
+            });
+        }
+
+        // ID Input
+        document.getElementById('submitIdBtn').addEventListener('click', submitId);
+        document.getElementById('studentIdInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitId();
+        });
+
+        async function submitId() {
+            const studentId = document.getElementById('studentIdInput').value.trim();
+            
+            if (!studentId) {
+                showError('الرجاء إدخال كود الطالب');
+                return;
+            }
+            
+            const student = allStudents.find(s => s.id === studentId);
+            if (student) {
+                await recordAttendance(student);
+            } else {
+                showError('الكود غير صحيح');
+            }
+        }
+
         // Show Success
-        function showSuccess(studentData, time) {
+        function showSuccess(student, time, matchPercentage) {
             document.getElementById('methodSelector').classList.add('hidden');
+            document.getElementById('faceSection').classList.remove('active');
             document.getElementById('qrSection').classList.remove('active');
             document.getElementById('idSection').classList.remove('active');
             document.getElementById('successSection').classList.add('active');
 
+            const photoHTML = student.photoURL 
+                ? `<img src="${student.photoURL}" class="student-photo" alt="${student.name}">` 
+                : `<div class="student-photo" style="background: #1e3c72; color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold;">${student.name.charAt(0)}</div>`;
+
+            const matchHTML = matchPercentage 
+                ? `<div class="match-confidence">✓ نسبة التطابق: ${matchPercentage}%</div>` 
+                : '';
+
             document.getElementById('successDetails').innerHTML = `
                 <div class="student-card">
-                    <div class="student-photo">${studentData.name.charAt(0)}</div>
+                    ${photoHTML}
                     <div class="student-info">
-                        <div class="student-name">${studentData.name}</div>
-                        <div class="student-details">${studentData.grade} - ${studentData.department}</div>
+                        <div class="student-name">${student.name}</div>
+                        <div class="student-details">${student.grade} - ${student.department}</div>
                         <div class="student-details">⏰ ${time.toLocaleTimeString('ar-EG')}</div>
                     </div>
                 </div>
+                ${matchHTML}
             `;
         }
 
         document.getElementById('newAttendanceBtn').addEventListener('click', resetToMethod);
 
-        // Show/Hide Loading
-        function showLoading() {
+        // Show/Hide Functions
+        function showLoading(text = 'جاري التحقق...') {
+            document.getElementById('loadingText').textContent = text;
             document.getElementById('loadingSection').classList.remove('hidden');
-            document.getElementById('startQrBtn').disabled = true;
-            document.getElementById('submitIdBtn').disabled = true;
         }
 
         function hideLoading() {
             document.getElementById('loadingSection').classList.add('hidden');
-            document.getElementById('startQrBtn').disabled = false;
-            document.getElementById('submitIdBtn').disabled = false;
         }
 
-        // Show/Hide Error
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = '⚠️ ' + message;
@@ -591,18 +754,26 @@
             document.getElementById('methodSelector').classList.remove('hidden');
             document.getElementById('successSection').classList.remove('active');
             
-            if (currentMethod === 'qr') {
+            if (currentMethod === 'face') {
+                document.getElementById('faceSection').classList.add('active');
+                document.getElementById('startFaceBtn').textContent = 'ابدأ التعرف على الوجه';
+                document.getElementById('startFaceBtn').disabled = false;
+            } else if (currentMethod === 'qr') {
                 document.getElementById('qrSection').classList.add('active');
                 document.getElementById('startQrBtn').textContent = 'ابدأ المسح';
                 document.getElementById('startQrBtn').disabled = false;
-                const qrReader = document.getElementById('qr-reader');
-                qrReader.innerHTML = '';
+                document.getElementById('qr-reader').innerHTML = '';
             } else {
                 document.getElementById('idSection').classList.add('active');
                 document.getElementById('studentIdInput').value = '';
                 document.getElementById('studentIdInput').focus();
             }
         }
+
+        // Initialize
+        window.onload = function() {
+            loadModels();
+        };
     </script>
 </body>
 </html>
