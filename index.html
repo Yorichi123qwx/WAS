@@ -12,8 +12,8 @@
     <!-- QR Code Scanner -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     
-    <!-- Face API -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+    <!-- Face API - نفس النسخة في صفحة الإضافة -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     
     <style>
         * {
@@ -303,6 +303,16 @@
             margin: 15px 0;
             font-weight: bold;
         }
+
+        .scanning-status {
+            text-align: center;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: #1e3c72;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -343,6 +353,7 @@
                     <div class="camera-container">
                         <video id="video-element" autoplay playsinline></video>
                     </div>
+                    <div id="scanningStatus" class="scanning-status hidden"></div>
                 </div>
                 <button class="btn" id="startFaceBtn">ابدأ التعرف على الوجه</button>
             </div>
@@ -435,22 +446,30 @@
         setInterval(updateTime, 1000);
         updateTime();
 
-        // Load Face API Models
+        // Load Face API Models - نفس النسخة المستخدمة في صفحة الإضافة
         async function loadModels() {
             try {
                 showLoading('جاري تحميل نماذج التعرف على الوجه...');
                 
-                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+                
+                console.log('🔄 Loading models from CDN:', MODEL_URL);
                 
                 await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                console.log('✓ Loaded tinyFaceDetector');
+                
                 await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                console.log('✓ Loaded faceLandmark68Net');
+                
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                console.log('✓ Loaded faceRecognitionNet');
                 
                 modelsLoaded = true;
                 hideLoading();
                 
                 // Load all students
                 await loadAllStudents();
+                console.log('✅ Models and students loaded successfully');
             } catch (error) {
                 console.error('Error loading models:', error);
                 hideLoading();
@@ -461,19 +480,30 @@
         // Load All Students from Database
         async function loadAllStudents() {
             try {
+                showLoading('جاري تحميل بيانات الطلاب...');
+                
                 const snapshot = await db.collection('students')
                     .where('active', '==', true)
                     .get();
                 
-                allStudents = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    faceDescriptor: new Float32Array(doc.data().faceDescriptor)
-                }));
+                allStudents = [];
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (data.faceDescriptor && Array.isArray(data.faceDescriptor)) {
+                        allStudents.push({
+                            id: doc.id,
+                            ...data,
+                            faceDescriptor: new Float32Array(data.faceDescriptor)
+                        });
+                    }
+                });
                 
-                console.log(`Loaded ${allStudents.length} students`);
+                console.log(`✅ Loaded ${allStudents.length} students with face descriptors`);
+                hideLoading();
             } catch (error) {
                 console.error('Error loading students:', error);
+                hideLoading();
+                showError('خطأ في تحميل بيانات الطلاب');
             }
         }
 
@@ -530,6 +560,7 @@
                 videoStream = null;
             }
             recognitionActive = false;
+            document.getElementById('scanningStatus').classList.add('hidden');
         }
 
         // Face Recognition
@@ -538,11 +569,18 @@
                 await loadModels();
             }
             
+            if (allStudents.length === 0) {
+                showError('لا يوجد طلاب مسجلين في النظام');
+                return;
+            }
+            
             await startCamera();
             recognitionActive = true;
             
             document.getElementById('startFaceBtn').textContent = 'جاري البحث عن الوجه...';
             document.getElementById('startFaceBtn').disabled = true;
+            document.getElementById('scanningStatus').classList.remove('hidden');
+            document.getElementById('scanningStatus').textContent = '🔍 جاري البحث عن وجهك...';
             
             recognizeFace();
         });
@@ -552,41 +590,58 @@
             if (!recognitionActive) return;
             
             const video = document.getElementById('video-element');
+            const statusDiv = document.getElementById('scanningStatus');
             
             if (video.readyState === 4) {
-                const detection = await faceapi
-                    .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-                
-                if (detection) {
-                    const faceDescriptor = detection.descriptor;
+                try {
+                    const detection = await faceapi
+                        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
                     
-                    // Compare with all students
-                    let bestMatch = null;
-                    let bestDistance = Infinity;
-                    const MATCH_THRESHOLD = 0.6; // Lower is better (95% match ≈ 0.4-0.6)
-                    
-                    for (const student of allStudents) {
-                        const distance = faceapi.euclideanDistance(
-                            faceDescriptor, 
-                            student.faceDescriptor
-                        );
+                    if (detection) {
+                        statusDiv.textContent = '✓ تم اكتشاف وجه - جاري المقارنة...';
                         
-                        if (distance < bestDistance) {
-                            bestDistance = distance;
-                            bestMatch = student;
+                        const faceDescriptor = detection.descriptor;
+                        
+                        // Compare with all students
+                        let bestMatch = null;
+                        let bestDistance = Infinity;
+                        const MATCH_THRESHOLD = 0.6; // العتبة - كلما قل الرقم كلما زادت الدقة
+                        
+                        for (const student of allStudents) {
+                            if (!student.faceDescriptor) continue;
+                            
+                            const distance = faceapi.euclideanDistance(
+                                faceDescriptor, 
+                                student.faceDescriptor
+                            );
+                            
+                            console.log(`Comparing with ${student.name}: distance = ${distance.toFixed(3)}`);
+                            
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                bestMatch = student;
+                            }
                         }
-                    }
-                    
-                    if (bestMatch && bestDistance < MATCH_THRESHOLD) {
-                        recognitionActive = false;
-                        stopCamera();
                         
-                        const matchPercentage = Math.round((1 - bestDistance) * 100);
-                        await recordAttendance(bestMatch, matchPercentage);
-                        return;
+                        if (bestMatch && bestDistance < MATCH_THRESHOLD) {
+                            recognitionActive = false;
+                            stopCamera();
+                            
+                            const matchPercentage = Math.round((1 - bestDistance) * 100);
+                            console.log(`✅ Match found: ${bestMatch.name} with ${matchPercentage}% confidence`);
+                            
+                            await recordAttendance(bestMatch, matchPercentage);
+                            return;
+                        } else {
+                            statusDiv.textContent = '❌ لم يتم العثور على تطابق - حاول مرة أخرى';
+                        }
+                    } else {
+                        statusDiv.textContent = '🔍 جاري البحث عن وجه...';
                     }
+                } catch (error) {
+                    console.error('Face recognition error:', error);
                 }
             }
             
@@ -677,7 +732,7 @@
         });
 
         async function submitId() {
-            const studentId = document.getElementById('studentIdInput').value.trim();
+            const studentId = document.getElementById('studentIdInput').value.trim().toUpperCase();
             
             if (!studentId) {
                 showError('الرجاء إدخال كود الطالب');
@@ -700,8 +755,8 @@
             document.getElementById('idSection').classList.remove('active');
             document.getElementById('successSection').classList.add('active');
 
-            const photoHTML = student.photoURL 
-                ? `<img src="${student.photoURL}" class="student-photo" alt="${student.name}">` 
+            const photoHTML = student.photoBase64 
+                ? `<img src="${student.photoBase64}" class="student-photo" alt="${student.name}">` 
                 : `<div class="student-photo" style="background: #1e3c72; color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold;">${student.name.charAt(0)}</div>`;
 
             const matchHTML = matchPercentage 
@@ -756,6 +811,7 @@
                 document.getElementById('faceSection').classList.add('active');
                 document.getElementById('startFaceBtn').textContent = 'ابدأ التعرف على الوجه';
                 document.getElementById('startFaceBtn').disabled = false;
+                document.getElementById('scanningStatus').classList.add('hidden');
             } else if (currentMethod === 'qr') {
                 document.getElementById('qrSection').classList.add('active');
                 document.getElementById('startQrBtn').textContent = 'ابدأ المسح';
@@ -770,6 +826,7 @@
 
         // Initialize
         window.onload = function() {
+            console.log('🚀 Starting attendance system...');
             loadModels();
         };
     </script>
