@@ -355,6 +355,7 @@ async function recordAttendance(student, matchPercentage = null) {
             studentName: student.name,
             grade: student.grade,
             department: student.department,
+            class: student.class,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             date: today,
             time: now.toLocaleTimeString('ar-EG'),
@@ -495,7 +496,8 @@ function showSuccess(student, time, matchPercentage) {
             ${photoHTML}
             <div class="student-info">
                 <div class="student-name">${student.name}</div>
-                <div class="student-details">${student.grade} - ${student.department}</div>
+                <div class="student-details">📚 ${student.grade} - ${student.department}</div>
+                <div class="student-details">🏫 الفصل: ${student.class}</div>
                 <div class="student-details">⏰ ${time.toLocaleTimeString('ar-EG')}</div>
             </div>
         </div>
